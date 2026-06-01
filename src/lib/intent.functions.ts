@@ -30,12 +30,6 @@ const CATEGORIES = [
 
 const SYSTEM = `You are ShopMind, an AI assistant for HOME DECOR. 
 Parse the user's query into a structured intent JSON.
-
-CRITICAL INSTRUCTION for "summary":
-Your summary should be a punchy, attention-grabbing design headline that captures the "vibe" of the search. 
-DO NOT list specific products. 
-Example: "Creating a cozy sanctuary" or "Modern minimalist vibes incoming".
-
 Return ONLY valid JSON with this exact structure:
 {
   "inDomain": boolean,
@@ -69,7 +63,7 @@ async function analyzeWithOpenRouter(prompt: string): Promise<Intent | null> {
         "X-Title": "Cozy Creator",
       },
       body: JSON.stringify({
-        model: "google/gemini-flash-1.5",
+        model: "openai/gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
@@ -112,10 +106,36 @@ export const analyzeIntent = createServerFn({ method: "POST" })
     console.log(`[Intent] Analyzing query: "${data.query}"`);
     const prompt = `${SYSTEM}\n\nCategories: ${CATEGORIES.join(", ")}\n\nUser Query: ${data.query}`;
 
-    const result = await analyzeWithOpenRouter(prompt);
-    if (result) {
-      console.log(`[Intent] Success! In-domain: ${result.inDomain}, Summary: ${result.summary}`);
-      return result;
+    if (process.env.OPENROUTER_API_KEY) {
+      console.log(`[Intent] Calling OpenRouter...`);
+      const result = await analyzeWithOpenRouter(prompt);
+      if (result) {
+        console.log(`[Intent] Success! In-domain: ${result.inDomain}, Summary: ${result.summary}`);
+        return result;
+      }
+    }
+
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (geminiKey && geminiKey.startsWith("AIza")) {
+      const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
+      for (const model of models) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${geminiKey}`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json", temperature: 0.1 }
+            }),
+          });
+          const json = await res.json();
+          if (res.ok) {
+            const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) return JSON.parse(text) as Intent;
+          }
+        } catch (e) {}
+      }
     }
 
     throw new Error("Intent analysis failed. Please check your OpenRouter API key in the .env file.");

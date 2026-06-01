@@ -25,14 +25,7 @@ export type RagResult = {
   generatedAt: string;
 };
 
-const SYSTEM_PROMPT = `You are ShopMind, a knowledgeable home decor shopping assistant and professional interior stylist. 
-
-CRITICAL INSTRUCTIONS:
-1. Catch the user's attention with an exciting, design-savvy opening.
-2. DO NOT list or describe the specific products provided in the context, as they are already displayed as interactive cards below your message.
-3. Focus exclusively on the "vibe", styling tips, and how this curated collection transforms their space.
-4. Use punchy, inspiring language. Keep it concise (under 3-4 sentences).
-5. Address the user directly and make them feel like they're getting expert advice.`;
+const SYSTEM_PROMPT = `You are ShopMind, a knowledgeable home decor shopping assistant. Friendly and design-savvy.`;
 const TOP_K_RETRIEVAL = 20;
 
 /** Use OpenRouter for embeddings (OpenAI-compatible) */
@@ -83,7 +76,7 @@ async function generateWithOpenRouter(prompt: string, temperature: number): Prom
         "X-Title": "Cozy Creator",
       },
       body: JSON.stringify({
-        model: "google/gemini-flash-1.5",
+        model: "openai/gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         temperature,
       }),
@@ -97,6 +90,30 @@ async function generateWithOpenRouter(prompt: string, temperature: number): Prom
     console.error("OpenRouter generation error:", err);
   } catch (e) {
     console.error("OpenRouter connection error:", e);
+  }
+  return "";
+}
+
+async function generateWithRetry(payload: any): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return "";
+  const models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"];
+  const versions = ["v1", "v1beta"];
+
+  for (const v of versions) {
+    for (const m of models) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/${v}/models/${m}:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const j = await res.json();
+          return j.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        }
+      } catch (e) {}
+    }
   }
   return "";
 }
@@ -158,7 +175,17 @@ export const ragQuery = createServerFn({ method: "POST" })
     const context = topProducts.slice(0, 5).map(p => `${p.name}: ${p.description}`).join("\n\n");
     const fullPrompt = SYSTEM_PROMPT + "\n\nQuery: " + query + "\n\nContext:\n" + context;
 
-    let aiResponse = await generateWithOpenRouter(fullPrompt, temperature);
+    let aiResponse = "";
+    if (process.env.OPENROUTER_API_KEY) {
+      aiResponse = await generateWithOpenRouter(fullPrompt, temperature);
+    }
+
+    if (!aiResponse && process.env.GEMINI_API_KEY) {
+      aiResponse = await generateWithRetry({
+        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+        generationConfig: { temperature, maxOutputTokens: 250 }
+      });
+    }
     
     if (!aiResponse) {
       console.warn(`[RAG] AI response is empty!`);
@@ -171,7 +198,7 @@ export const ragQuery = createServerFn({ method: "POST" })
       topChunks: chunks.slice(0, 5),
       topProducts: topProducts.slice(0, 5),
       additionalProducts: topProducts.slice(5),
-      prompt: { system: SYSTEM_PROMPT, retrievedContext: context, userQuery: query, full: "OpenRouter used" },
+      prompt: { system: SYSTEM_PROMPT, retrievedContext: context, userQuery: query, full: "Multi-model retry used" },
       generatedAt: new Date().toISOString(),
     };
   });
