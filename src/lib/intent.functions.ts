@@ -63,7 +63,7 @@ async function analyzeWithOpenRouter(prompt: string): Promise<Intent | null> {
         "X-Title": "Cozy Creator",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
+        model: "openai/gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
