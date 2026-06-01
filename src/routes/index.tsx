@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Sparkles, Mic, MicOff, ArrowRight, ChevronDown, ShoppingCart, Info } from "lucide-react";
+import { Sparkles, Mic, MicOff, ArrowRight, ChevronDown, ShoppingBag, Info, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAdmin } from "@/lib/admin";
 import { useTemperature } from "@/lib/temperature";
@@ -40,7 +40,7 @@ function Index() {
   const [listening, setListening] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const recogRef = useRef<any>(null);
-  const { totalItems } = useCart();
+  const { totalItems, items, clearCart, setIsCartOpen } = useCart();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -72,6 +72,13 @@ function Index() {
     navigate({ to: "/chat", search: { q: finalQ } });
   };
 
+  const handleClearCart = () => {
+    if (window.confirm("Are you sure you want to clear your cart?")) {
+      clearCart();
+      toast.success("Cart cleared");
+    }
+  };
+
   return (
     <div className={`relative min-h-screen overflow-hidden bg-background transition-opacity duration-700 ${isLoaded ? "opacity-100" : "opacity-0"}`}>
       {/* Dynamic Background */}
@@ -85,14 +92,27 @@ function Index() {
           <span className="font-display text-xl tracking-tight">ShopMind</span>
         </div>
         <div className="flex items-center gap-4">
-          <Link to="/checkout" className="relative flex h-10 w-10 items-center justify-center rounded-full bg-accent/50 text-foreground transition-all hover:scale-110 active:scale-95">
-            <ShoppingCart className="h-5 w-5" />
+          {items.length > 0 && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors gap-2 rounded-full"
+              onClick={handleClearCart}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Clear Cart
+            </Button>
+          )}
+          <button 
+            onClick={() => setIsCartOpen(true)}
+            className="relative flex h-10 w-10 items-center justify-center rounded-full bg-accent/50 text-foreground transition-all hover:scale-110 active:scale-95 cursor-pointer"
+          >
+            <ShoppingBag className="h-5 w-5" />
             {totalItems > 0 && (
               <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground animate-in zoom-in">
                 {totalItems}
               </span>
             )}
-          </Link>
+          </button>
           {isAdmin && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full border border-border">
               <Switch checked={adminView} onCheckedChange={setAdminView} />
@@ -102,7 +122,7 @@ function Index() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto flex max-w-2xl flex-col items-center px-6 pb-24 pt-16 sm:pt-24">
+      <main className="relative z-10 mx-auto max-w-2xl flex-col items-center px-6 pb-24 pt-16 sm:pt-24">
         <div className="animate-in slide-in-from-bottom duration-700">
           <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[11px] uppercase tracking-widest text-primary font-medium backdrop-blur">
             Intent-Aware Shopping

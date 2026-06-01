@@ -17,7 +17,7 @@ import { DebugPanel } from "@/components/DebugPanel";
 import { analyzeIntent, type Intent, type Clarification } from "@/lib/intent.functions";
 import { ragQuery, type RagResult } from "@/lib/rag.functions";
 import type { Product } from "@/lib/products";
-import { ArrowLeft, Send, Sparkles, SlidersHorizontal, Loader2, Mic, MicOff, Star, ChevronDown, ShoppingCart, LayoutDashboard } from "lucide-react";
+import { ArrowLeft, Send, Sparkles, SlidersHorizontal, Loader2, Mic, MicOff, Star, ChevronDown, ShoppingBag, LayoutDashboard, Plus, Minus, Trash2, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { useAdmin } from "@/lib/admin";
 import { useTemperature } from "@/lib/temperature";
@@ -62,7 +62,7 @@ function ChatPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [selected, setSelected] = useState<Product | null>(null);
   const startedRef = useRef(false);
-  const { totalItems } = useCart();
+  const { totalItems, setIsCartOpen } = useCart();
 
   const lastAssistant = useMemo(
     () => [...turns].reverse().find((t): t is Extract<Turn, { role: "assistant" }> => t.role === "assistant"),
@@ -195,14 +195,17 @@ function ChatPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link to="/checkout" className="relative flex h-10 w-10 items-center justify-center rounded-full bg-accent/50 text-foreground transition-all hover:scale-110 active:scale-95">
-              <ShoppingCart className="h-5 w-5" />
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-accent/50 text-foreground transition-all hover:scale-110 active:scale-95 cursor-pointer"
+            >
+              <ShoppingBag className="h-5 w-5" />
               {totalItems > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground animate-in zoom-in">
                   {totalItems}
                 </span>
               )}
-            </Link>
+            </button>
 
             {isAdmin && (
               <Sheet>
@@ -573,6 +576,9 @@ function ResultCard({
   const count = product.reviewCount ?? 0;
   const discount = product.discountPct ?? 0;
   const fields = prioritizedFields(intent);
+  const { addItem, getItemQuantity, updateQuantity } = useCart();
+  const quantity = getItemQuantity(product.id);
+
   const fieldValue = (f: typeof fields[number]) => {
     switch (f) {
       case "material": return product.material || "Mixed materials";
@@ -584,6 +590,18 @@ function ResultCard({
     }
   };
 
+  const handleAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    addItem(product);
+    toast.success(`${product.name} added to cart`);
+  };
+
+  const handleRemove = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateQuantity(product.id, quantity - 1);
+    if (quantity === 1) toast.info(`${product.name} removed from cart`);
+  };
+
   return (
     <HoverCard openDelay={120} closeDelay={60}>
       <HoverCardTrigger asChild>
@@ -593,12 +611,14 @@ function ResultCard({
           className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-left transition-all hover:shadow-lg hover:shadow-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
           <ProductImage product={product} className="h-40 w-full" />
+          
           {discount > 0 && (
             <span className="absolute left-3 top-3 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-medium text-white">
               {discount}% off
             </span>
           )}
-          <div className="flex flex-1 flex-col gap-2 p-4">
+          
+          <div className="flex flex-1 flex-col gap-2 p-4 pb-14">
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{product.category}</div>
             <div className="flex items-start justify-between gap-2">
               <h3 className="font-display text-base leading-tight text-foreground">{product.name}</h3>
@@ -617,6 +637,40 @@ function ResultCard({
                 <span className="text-muted-foreground">({count.toLocaleString("en-IN")})</span>
               </span>
             </div>
+          </div>
+
+          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+            {quantity > 0 ? (
+              <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full p-0.5 animate-in slide-in-from-left duration-300">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 rounded-full hover:bg-primary/20 text-primary"
+                  onClick={handleRemove}
+                >
+                  {quantity === 1 ? <Trash2 className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
+                </Button>
+                <span className="font-bold text-xs text-primary min-w-[1rem] text-center">{quantity}</span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 rounded-full hover:bg-primary/20 text-primary"
+                  onClick={handleAdd}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ) : <div />}
+            
+            <Button
+              size="sm"
+              variant="outline"
+              className={`h-8 rounded-full border-primary/20 bg-background/80 backdrop-blur-sm text-primary hover:bg-primary hover:text-primary-foreground transition-all gap-1.5 shadow-sm px-3 ${quantity > 0 ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100'}`}
+              onClick={handleAdd}
+            >
+              <ShoppingCart className="h-3.5 w-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-tight">Add</span>
+            </Button>
           </div>
         </button>
       </HoverCardTrigger>

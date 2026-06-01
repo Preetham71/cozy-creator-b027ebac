@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/lib/cart";
-import { ArrowLeft, CreditCard, Wallet, Banknote, CheckCircle2, Download, ShoppingBag, Trash2, Minus, Plus, Sparkles, LayoutDashboard, ChevronRight } from "lucide-react";
+import { ArrowLeft, CreditCard, Wallet, Banknote, CheckCircle2, Download, ShoppingBag, Trash2, Minus, Plus, Sparkles, LayoutDashboard, ChevronRight, Home } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
@@ -31,6 +31,7 @@ function CheckoutPage() {
   const { items, totalPrice, updateQuantity, removeItem, clearCart, addItem } = useCart();
   const { data: allProducts } = useSuspenseQuery(productsQueryOptions);
   const isAdmin = useAdmin();
+  const navigate = useNavigate();
   
   const [paymentMethod, setPaymentMethod] = useState<string>("upi");
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
@@ -105,9 +106,11 @@ function CheckoutPage() {
         </div>
         <h1 className="mt-8 font-display text-3xl text-foreground tracking-tight">Your cart is empty</h1>
         <p className="mt-3 text-center text-muted-foreground max-w-xs">The best time to style your home was yesterday. The second best time is now.</p>
-        <Button asChild className="mt-10 rounded-full px-8 h-12 shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
-          <Link to="/">Start styling with AI <ArrowLeft className="ml-2 h-4 w-4 rotate-180" /></Link>
-        </Button>
+        <div className="mt-10">
+          <Button asChild className="rounded-full px-8 h-12 shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
+            <Link to="/">Start styling with AI <ArrowLeft className="ml-2 h-4 w-4 rotate-180" /></Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -116,9 +119,17 @@ function CheckoutPage() {
     <div className={`min-h-screen bg-muted/20 pb-24 pt-8 transition-all duration-700 ${isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
       <div className="mx-auto max-w-5xl px-6">
         <div className="flex items-center justify-between mb-8">
-          <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group">
-            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Back to styling
-          </Link>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => window.history.back()} 
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group"
+            >
+              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Back
+            </button>
+            <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group">
+              <Home className="h-4 w-4" /> Home
+            </Link>
+          </div>
           {isAdmin && (
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="bg-primary/5 text-primary border-primary/10 gap-1.5 px-3">
